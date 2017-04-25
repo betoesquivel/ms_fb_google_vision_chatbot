@@ -38,7 +38,7 @@ bot.dialog('/', [
       .images([
         builder
           .CardImage
-          .create(session, 'http://placekitten.com/200/300')
+          .create(session, 'http://placekitten.com/1024/1024')
       ]);
     const msg = new builder.Message(session).attachments([card]);
     session.send(msg);
@@ -60,7 +60,7 @@ bot.dialog('/menu', [
     builder.Prompts
       .choice(
         session,
-        "What demo would you like to run?", "prompts|picture|cards|list|carousel|receipt|actions|(quit)"
+        "Qué quieres hacer?", "analizar imagen|prompts|picture|cards|list|carousel|receipt|actions|(quit)"
       );
   },
   function (session, results) {
@@ -90,12 +90,28 @@ bot.dialog('/help', [
   },
 ]);
 
+bot.dialog('/google', [
+  function (session) {
+    echo(session, results);
+    builder.Prompts.attachment(session, "Envíame una imágen de un ticket y te diré que veo :P.");
+  },
+  function (session, results) {
+    const msg = new builder.Message(session)
+      .ntext("Obtuve %d imágen", "Obtuve %d imágenes", results.response.length);
+    results.response.forEach((attachment) => {
+      msg.addAttachment(attachment);
+    });
+    session.endDialog(msg);
+  },
+]);
+
 const echo = function (s, r, path = ['response']) {
   const response = path.reduce((obj, attr) => obj[attr], r);
   const responseStr = typeof(response) !== 'string' ?
     JSON.stringify(response) : response;
   s.send(`You entered ${responseStr}`);
 }
+
 bot.dialog('/prompts', [
   function (session) {
     session.send(`Our Bot Builder SDK has a rich set of built-in prompts that simplify asking the user a series of questions. This demo will walk you through using each prompt. Just follow the prompts and you can quit at any time by saying 'cancel'.`);
