@@ -1,6 +1,50 @@
 var restify = require('restify');
 var builder = require('botbuilder');
 
+var {
+  G_PROJECT_ID,
+  G_PATH_TO_KEY,
+} = process.env;
+
+var config = {
+  projectId: G_PROJECT_ID,
+  keyFilename: G_PATH_TO_KEY,
+};
+
+var vision = require('@google-cloud/vision')(config);
+
+var buildAnnotateImageRequest = (base64) => ({
+  features: [
+    {
+      type: 'DOCUMENT_TEXT_DETECTION',
+    },
+    {
+      type: 'TEXT_DETECTION',
+    },
+  ],
+  imageContext: {
+    languageHints: [
+      'es',
+      'en',
+    ],
+  },
+  image: {
+    content: base64,
+  },
+});
+var safeGet = (obj, prop) => obj[prop] || {};
+var firstAnnotation = r => safeGet(safeGet(r, 0), 0);
+
+// test in console by running these
+//var extract = r => { global.r = r; console.log(r); return r; };
+//var Datauri = require('datauri');
+//var base64 = (new Datauri(imgPath)).base64
+//var visionRequest = buildAnnotateImageRequest(base64);
+//vision.annotate(visionRequest).then(firstAnnotation).then(extract, extract);
+//r.fullTextAnnotation
+//r.textAnnotations
+
+
 var server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function() {
   console.log('%s listening to %s', server.name, server.url);
@@ -90,9 +134,8 @@ bot.dialog('/help', [
   },
 ]);
 
-bot.dialog('/google', [
+bot.dialog('/analizar imagen', [
   function (session) {
-    echo(session, results);
     builder.Prompts.attachment(session, "Envíame una imágen de un ticket y te diré que veo :P.");
   },
   function (session, results) {
@@ -101,6 +144,16 @@ bot.dialog('/google', [
     results.response.forEach((attachment) => {
       msg.addAttachment(attachment);
     });
+
+    console.log(attachment);
+    console.log(Object.keys(attachment));
+
+    //var visionRequest = buildAnnotateImageRequest(base64);
+    //vision.annotate(visionRequest).then(firstAnnotation).then(extract, extract);
+    //r.fullTextAnnotation
+    //r.textAnnotations
+    //session.send(r.fullTextAnnotation);
+
     session.endDialog(msg);
   },
 ]);
