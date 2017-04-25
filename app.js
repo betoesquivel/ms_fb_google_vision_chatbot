@@ -47,6 +47,10 @@ var buildAnnotateImageRequest = (base64) => ({
 var safeGet = (obj, prop) => obj[prop] || {};
 var firstAnnotation = r => safeGet(safeGet(r, 0), 0);
 
+//r.textAnnotations
+
+//console.log(JSON.stringify(r[0][0].textAnnotations));
+
 // test in console by running these
 //var extract = r => { global.r = r; console.log(r); return r; };
 ////var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18159798_10211192586763449_813895164_o.jpg?_nc_ad=z-m&oh=0ed5b041ad46933ce9c8e906c3bfe5a7&oe=59027502';
