@@ -1,5 +1,7 @@
 var restify = require('restify');
 var builder = require('botbuilder');
+var Datauri = require('datauri');
+var base64Img = require('base64-img');
 
 var {
   G_PROJECT_ID,
@@ -13,6 +15,16 @@ var config = {
 
 var vision = require('@google-cloud/vision')(config);
 
+var tap = r => { console.log(r); return r; };
+var promiseBase64FromURL = (url) => new Promise((resolve, reject) => {
+    base64Img.requestBase64(url, function(err, res, datauri) {
+      if (!err) {
+        resolve(datauri.split(',')[1]);
+      } else {
+        reject(err);
+      }
+    });
+});
 var buildAnnotateImageRequest = (base64) => ({
   features: [
     {
@@ -37,10 +49,27 @@ var firstAnnotation = r => safeGet(safeGet(r, 0), 0);
 
 // test in console by running these
 //var extract = r => { global.r = r; console.log(r); return r; };
-//var Datauri = require('datauri');
-//var base64 = (new Datauri(imgPath)).base64
+////var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18159798_10211192586763449_813895164_o.jpg?_nc_ad=z-m&oh=0ed5b041ad46933ce9c8e906c3bfe5a7&oe=59027502';
+////
+//var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18159464_10211192684885902_1984437387_o.jpg?_nc_ad=z-m&oh=ffd2d9e6be027600c67badac92ef90ef&oe=5902039E'
+//var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18160105_10211193026894452_1154707846_o.jpg?_nc_ad=z-m&oh=5ec9b54b8def5286d8fe523f4e05cc9b&oe=59020ADF';
+
+//promiseBase64FromURL(imgPath).then((base64) => {
+    //var visionRequest = buildAnnotateImageRequest(base64);
+    //return vision.annotate(visionRequest).then(firstAnnotation);
+  //}).then(extract, extract);
+
+//promiseBase64FromURL(imgPath).then(buildAnnotateImageRequest).then(r => vision.annotate(r)).then(extract, extract);
+
+//r
+
+
+////var imgPath = '../t.jpg';
+////var base64 = (new Datauri(imgPath)).base64
+
 //var visionRequest = buildAnnotateImageRequest(base64);
 //vision.annotate(visionRequest).then(firstAnnotation).then(extract, extract);
+
 //r.fullTextAnnotation
 //r.textAnnotations
 
@@ -139,22 +168,33 @@ bot.dialog('/analizar imagen', [
     builder.Prompts.attachment(session, "Envíame una imágen de un ticket y te diré que veo :P.");
   },
   function (session, results) {
-    const msg = new builder.Message(session)
+    let msg = new builder.Message(session)
       .ntext("Obtuve %d imágen", "Obtuve %d imágenes", results.response.length);
-    results.response.forEach((attachment) => {
-      msg.addAttachment(attachment);
+    session.send(msg);
+    const processedImages = results.response.map((attachment) => {
+      const { contentUrl } = attachment;
+      console.log(contentUrl);
+      return promiseBase64FromURL(contentUrl)
+        .then(r => { console.log(r.substring(0, 100)); return r;})
+        .then(buildAnnotateImageRequest)
+        .then(r => { console.log(Object.keys(r)); return r;})
+        .then(r => vision.annotate(r))
+        .then(tap)
+        .then(firstAnnotation);
     });
 
-    console.log(attachment);
-    console.log(Object.keys(attachment));
-
-    //var visionRequest = buildAnnotateImageRequest(base64);
-    //vision.annotate(visionRequest).then(firstAnnotation).then(extract, extract);
     //r.fullTextAnnotation
     //r.textAnnotations
-    //session.send(r.fullTextAnnotation);
+    Promise.all(processedImages).then((imagesAnnotations) => {
+      imagesAnnotations.forEach((a) => {
+        msg = new builder.Message(session)
+          .ntext("Encontré %d sección con texto", "Encontré %d secciones de texto", a.textAnnotations.length);
+        session.send(msg);
+        session.send(a.fullTextAnnotation);
+      });
+      session.endDialog('Esas son todas las imagenes.');
+    });
 
-    session.endDialog(msg);
   },
 ]);
 
