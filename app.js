@@ -1,8 +1,8 @@
 var restify = require('restify');
 var builder = require('botbuilder');
-var Datauri = require('datauri');
 var base64Img = require('base64-img');
 
+// configure google vision client
 var {
   G_PROJECT_ID,
   G_PATH_TO_KEY,
@@ -15,7 +15,9 @@ var config = {
 
 var vision = require('@google-cloud/vision')(config);
 
+// utility functions for google cloud visioning
 var tap = r => { console.log(r); return r; };
+
 var promiseBase64FromURL = (url) => new Promise((resolve, reject) => {
     base64Img.requestBase64(url, function(err, res, datauri) {
       if (!err) {
@@ -25,6 +27,7 @@ var promiseBase64FromURL = (url) => new Promise((resolve, reject) => {
       }
     });
 });
+
 var buildAnnotateImageRequest = (base64) => ({
   features: [
     {
@@ -44,50 +47,27 @@ var buildAnnotateImageRequest = (base64) => ({
     content: base64,
   },
 });
+
 var safeGet = (obj, prop) => obj[prop] || {};
+
 var firstAnnotation = r => safeGet(safeGet(r, 0), 0);
 
-//r.textAnnotations
-
-//console.log(JSON.stringify(r[0][0].textAnnotations));
-
-// test in console by running these
-//var extract = r => { global.r = r; console.log(r); return r; };
-////var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18159798_10211192586763449_813895164_o.jpg?_nc_ad=z-m&oh=0ed5b041ad46933ce9c8e906c3bfe5a7&oe=59027502';
-////
-//var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18159464_10211192684885902_1984437387_o.jpg?_nc_ad=z-m&oh=ffd2d9e6be027600c67badac92ef90ef&oe=5902039E'
-//var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18160105_10211193026894452_1154707846_o.jpg?_nc_ad=z-m&oh=5ec9b54b8def5286d8fe523f4e05cc9b&oe=59020ADF';
-
-//promiseBase64FromURL(imgPath).then((base64) => {
-    //var visionRequest = buildAnnotateImageRequest(base64);
-    //return vision.annotate(visionRequest).then(firstAnnotation);
-  //}).then(extract, extract);
-
-//promiseBase64FromURL(imgPath).then(buildAnnotateImageRequest).then(r => vision.annotate(r)).then(extract, extract);
-
-//r
-
-
-////var imgPath = '../t.jpg';
-////var base64 = (new Datauri(imgPath)).base64
-
-//var visionRequest = buildAnnotateImageRequest(base64);
-//vision.annotate(visionRequest).then(firstAnnotation).then(extract, extract);
-
-//r.fullTextAnnotation
-//r.textAnnotations
-
-
+// create the server
 var server = restify.createServer();
+
 server.listen(process.env.port || process.env.PORT || 3978, function() {
   console.log('%s listening to %s', server.name, server.url);
 });
 
+// configure the bot and its connection to MS channels
 var connector = new builder.ChatConnector({
   appId: process.env.MICROSOFT_APP_ID,
   appPassword: process.env.MICROSOFT_APP_PASSWORD,
 });
+
 var bot = new builder.UniversalBot(connector);
+
+// connect server and bot
 server.post('/api/messages', connector.listen());
 
 //===
@@ -100,8 +80,8 @@ bot.use(builder.Middleware.dialogVersion({ version: 1.0, resetCommand: /^rest/i 
 // Bot's Global Actions
 //===
 
-bot.endConversationAction('goodbye', 'Goodbye :)', { matches: /^goodbye/i });
-bot.beginDialogAction('help', '/help', { matches: /^help/i });
+bot.endConversationAction('adios', 'Adios :)', { matches: /^(adios|bye|sopas)/i });
+bot.beginDialogAction('ayuda', '/help', { matches: /^ay[úu]da[\w]+.*/i });
 
 //===
 // Bot's Dialogs
@@ -110,17 +90,17 @@ bot.beginDialogAction('help', '/help', { matches: /^help/i });
 bot.dialog('/', [
   function (session) {
     const card = new builder.HeroCard(session)
-      .title("Microsoft Bot Framework")
-      .text("Your bots - where your users are talking.")
+      .title("Sofia")
+      .text("Cuenta conmigo...")
       .images([
         builder
           .CardImage
-          .create(session, 'http://placekitten.com/1024/1024')
+          .create(session, 'http://images.visualphotos.com/saveasphoto/211/5/6/3/4//lr/esy-000796315.jpg')
       ]);
     const msg = new builder.Message(session).attachments([card]);
     session.send(msg);
     session.send(
-      "Hi... I'm the Microsoft Bot Framework demo bot for Facebook. I can show you everything you can use our Bot Builder SDK to do on Facebook."
+      "Hola, soy Sofía, si necesitas registrar tus gastos rápidamente, envíame fotos de tus tickets y lo haré por tí."
     );
     session.beginDialog('/help');
   },
@@ -128,7 +108,7 @@ bot.dialog('/', [
     session.beginDialog('/menu');
   },
   function (session, results) {
-    session.send("Ok... See you later!");
+    session.send("Ok... hasta luego!");
   }
 ]);
 
@@ -137,7 +117,7 @@ bot.dialog('/menu', [
     builder.Prompts
       .choice(
         session,
-        "Qué quieres hacer?", "analizar imagen|prompts|picture|cards|list|carousel|receipt|actions|(quit)"
+        "Qué quieres hacer?", "analizar imagen|(quit)"
       );
   },
   function (session, results) {
@@ -154,12 +134,12 @@ bot.dialog('/menu', [
 ]).reloadAction('reloadMenu', null, { matches: /^menu|show menu/i });
 
 const helpText = `\
-Global commands that are available anytime:
+Comandos que están disponibles en cualquier momento
 
 
-* menu - Exits a demo and returns to the menu.
-* goodbye - End this conversation
-* help - displays these commands.\
+* menu - Te muestro un menú de lo que puedo hacer.
+* adios - Dejamos de hablar :'(
+* ayuda - Te enseño estos comandos jeje.\
 `;
 bot.dialog('/help', [
   function (session) {
@@ -169,7 +149,7 @@ bot.dialog('/help', [
 
 bot.dialog('/analizar imagen', [
   function (session) {
-    builder.Prompts.attachment(session, "Envíame una imágen de un ticket y te diré que veo :P.");
+    builder.Prompts.attachment(session, "Envíame una imágen de un ticket y te diré que veo!");
   },
   function (session, results) {
     let msg = new builder.Message(session)
@@ -177,10 +157,11 @@ bot.dialog('/analizar imagen', [
     session.send(msg);
     const processedImages = results.response.map((attachment) => {
       const { contentUrl } = attachment;
-      console.log(contentUrl);
+      session.send(`Analizaré esta imagen: ${contentUrl}...`);
       return promiseBase64FromURL(contentUrl)
         .then(r => { console.log(r.substring(0, 100)); return r;})
         .then(buildAnnotateImageRequest)
+        .then(r => { session.send(`Esto es lo que enviaré a Google. ${JSON.stringify(Object.keys(r))}`); return r; })
         .then(r => { console.log(Object.keys(r)); return r;})
         .then(r => vision.annotate(r))
         .then(tap)
@@ -194,6 +175,7 @@ bot.dialog('/analizar imagen', [
         msg = new builder.Message(session)
           .ntext("Encontré %d sección con texto", "Encontré %d secciones de texto", a.textAnnotations.length);
         session.send(msg);
+        session.send("Este es el texto completo.");
         session.send(a.fullTextAnnotation);
       });
       session.endDialog('Esas son todas las imagenes.');
@@ -466,3 +448,32 @@ bot.dialog('/weather', [
 ]);
 
 bot.beginDialogAction('weather', '/weather');
+
+// test in console by running these
+/*
+var extract = r => { global.r = r; console.log(r); return r; };
+
+// with url image
+var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18159798_10211192586763449_813895164_o.jpg?_nc_ad=z-m&oh=0ed5b041ad46933ce9c8e906c3bfe5a7&oe=59027502';
+var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18159464_10211192684885902_1984437387_o.jpg?_nc_ad=z-m&oh=ffd2d9e6be027600c67badac92ef90ef&oe=5902039E'
+var imgPath = 'https://scontent.xx.fbcdn.net/v/t35.0-12/18160105_10211193026894452_1154707846_o.jpg?_nc_ad=z-m&oh=5ec9b54b8def5286d8fe523f4e05cc9b&oe=59020ADF';
+
+promiseBase64FromURL(imgPath).then((base64) => {
+    var visionRequest = buildAnnotateImageRequest(base64);
+    return vision.annotate(visionRequest).then(firstAnnotation);
+  }).then(extract, extract);
+
+promiseBase64FromURL(imgPath).then(buildAnnotateImageRequest).then(r => vision.annotate(r)).then(extract, extract);
+
+// with local image
+var Datauri = require('datauri');
+var imgPath = '../t.jpg';
+var base64 = (new Datauri(imgPath)).base64
+
+var visionRequest = buildAnnotateImageRequest(base64);
+vision.annotate(visionRequest).then(firstAnnotation).then(extract, extract);
+
+r.fullTextAnnotation
+r.textAnnotations
+
+*/
