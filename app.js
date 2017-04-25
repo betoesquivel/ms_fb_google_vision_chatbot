@@ -94,7 +94,7 @@ const echo = function (s, r, path = ['response']) {
   const response = path.reduce((obj, attr) => obj[attr], r);
   const responseStr = typeof(response) !== 'string' ?
     JSON.stringify(response) : response;
-  session.send(`You entered ${responseStr}`);
+  s.send(`You entered ${responseStr}`);
 }
 bot.dialog('/prompts', [
   function (session) {
@@ -107,7 +107,7 @@ bot.dialog('/prompts', [
   },
   function (session, results) {
     echo(session, results);
-    bulider.Prompts.choice(session, "Prompts.choice()\n\nChoose a list style (the default is auto.)", "auto|inline|list|button|none");
+    builder.Prompts.choice(session, "Prompts.choice()\n\nChoose a list style (the default is auto.)", "auto|inline|list|button|none");
   },
   function (session, results) {
     const style = builder.ListStyle[results.response.entity];
