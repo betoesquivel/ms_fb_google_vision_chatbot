@@ -25,6 +25,17 @@ in an incognito tab first before panicking.*
   2. Then create a facebook app for a chatbot following Facebook's instructions.
   3. Then you are going to need to create a facebook page.
   4. Then go into the Microsoft botframework console and setup the Facebook channel for your bot.
+  5. Go into your google developers console and create your service key file for the google cloud vision API (they tell you how to do it).
+
+Also, you have to have the following environment variables setup before running.
+They all should be available to you after the above is done.
+I have them setup in a bash script that I *source* before runing node.
+
+  1. MICROSOFT_APP_ID=
+  2. MICROSOFT_APP_PASSWORD=
+  3. G_PROJECT_ID=
+  4. G_PATH_TO_KEY=
+
 
 After all of the above is done. Just run the app locally (assuming you have *ngrok* or something similar setup)
 and you should be ready to rumble.
